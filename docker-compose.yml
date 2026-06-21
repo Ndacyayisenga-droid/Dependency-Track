@@ -1,48 +1,18 @@
-name: Dependency-Track
+version: "3.9"
 
 services:
-  apiserver:
-    image: ghcr.io/dependencytrack/apiserver:5.0.1
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-    environment:
-      DT_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/dtrack"
-      DT_DATASOURCE_USERNAME: "dtrack"
-      DT_DATASOURCE_PASSWORD: "dtrack"
-
-      # Important for Coolify deployments (session/login stability)
-      DT_BASE_URL: "https://mydyklf409lxn7itpnfs6wre.playground.open-elements.cloud"
-
-      # Fixes common login/CORS issues
-      DT_CORS_ALLOWED_ORIGINS: "https://testdt.playground.open-elements.cloud"
-
-    volumes:
-      - apiserver-data:/data
-
-    restart: unless-stopped
-
-  frontend:
-    image: ghcr.io/dependencytrack/frontend:5.0.1
-
-    environment:
-      # MUST be public API URL (NOT localhost)
-      API_BASE_URL: "https://mydyklf409lxn7itpnfs6wre.playground.open-elements.cloud"
-
-    restart: unless-stopped
-
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
+    container_name: dtrack-postgres
+    restart: unless-stopped
 
     environment:
-      POSTGRES_DB: "dtrack"
-      POSTGRES_USER: "dtrack"
-      POSTGRES_PASSWORD: "dtrack"
+      POSTGRES_DB: dtrack
+      POSTGRES_USER: dtrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dtrack -d dtrack"]
@@ -51,8 +21,37 @@ services:
       retries: 10
       start_period: 20s
 
+  apiserver:
+    image: ghcr.io/dependencytrack/apiserver:5.0.1
+    container_name: dtrack-apiserver
     restart: unless-stopped
 
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      DT_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dtrack
+      DT_DATASOURCE_USERNAME: dtrack
+      DT_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - dtrack_data:/data
+
+  frontend:
+    image: ghcr.io/dependencytrack/frontend:latest
+    container_name: dtrack-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - apiserver
+
+    ports:
+      - "8081:8080"
+
 volumes:
-  apiserver-data: {}
-  postgres-data: {}
+  postgres_data:
+  dtrack_data:
