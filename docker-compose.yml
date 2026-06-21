@@ -22,7 +22,7 @@ services:
       start_period: 20s
 
   apiserver:
-    image: ghcr.io/dependencytrack/apiserver:5.0.1
+    image: dependencytrack/apiserver:5.0.1
     container_name: dtrack-apiserver
     restart: unless-stopped
 
@@ -42,7 +42,7 @@ services:
       - dtrack_data:/data
 
   frontend:
-    image: ghcr.io/dependencytrack/frontend:latest
+    image: dependencytrack/frontend:5.0.1
     container_name: dtrack-frontend
     restart: unless-stopped
 
