@@ -1,57 +1,48 @@
-version: "3.9"
+name: dependency-track
 
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: dtrack-postgres
+    image: postgres:17-alpine
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: dtrack
-      POSTGRES_USER: dtrack
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES:-dtrack}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES:-dtrack}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dtrack -d dtrack"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   apiserver:
-    image: dependencytrack/apiserver:5.0.1
-    container_name: dtrack-apiserver
+    image: dependencytrack/apiserver:5.0.2
     restart: unless-stopped
-
     depends_on:
       postgres:
         condition: service_healthy
-
     environment:
       DT_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dtrack
-      DT_DATASOURCE_USERNAME: dtrack
-      DT_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-
-    ports:
-      - "8080:8080"
-
+      DT_DATASOURCE_USERNAME: ${SERVICE_USER_POSTGRES:-dtrack}
+      DT_DATASOURCE_PASSWORD: ${SERVICE_PASSWORD_POSTGRES:-dtrack}
+    expose:
+      - "8080"
     volumes:
-      - dtrack_data:/data
+      - apiserver-data:/data
 
   frontend:
-    image: dependencytrack/frontend:5.0.1
-    container_name: dtrack-frontend
+    image: dependencytrack/frontend:5.0.2
     restart: unless-stopped
-
     depends_on:
       - apiserver
-
-    ports:
-      - "8081:8080"
+    environment:
+      # Must be reachable by users' browsers (Coolify sets SERVICE_URL_APISERVER from the apiserver domain).
+      API_BASE_URL: ${SERVICE_URL_APISERVER:-http://localhost:8080}
+    expose:
+      - "8080"
 
 volumes:
-  postgres_data:
-  dtrack_data:
+  postgres-data:
+  apiserver-data:
